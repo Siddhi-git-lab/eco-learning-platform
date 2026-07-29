@@ -11,12 +11,20 @@ import {
 } from 'lucide-react';
 
 function DashboardContent() {
-  const { user, activeTab, setActiveTab } = useGame();
-   const [points, setPoints] = useState(450);
-   const [streak, setStreak] = useState(5);
-   const [completedQuests, setCompletedQuests] = useState([]);
-   const [aiOpen, setAiOpen] = useState(false);
-   const [aiTip, setAiTip] = useState("Tip: Turning off unused appliances can save up to 10% on energy bills!");
+  const [travelKm, setTravelKm] = useState('');
+  const { user, setUser, activeTab, setActiveTab } = useGame();
+  const [streak, setStreak] = useState(5);
+  const [completedQuests, setCompletedQuests] = useState([]);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiTip, setAiTip] = useState("Tip: Turning off unused appliances can save up to 10% on energy bills!");
+  if (!user) return <div>Loading...</div>;
+  const handleCompleteQuest = (questId, pointsReward) => {
+  if (completedQuests.includes(questId)) return;
+
+  setCompletedQuests([...completedQuests, questId]);
+  setUser(prev => ({ ...prev, points: (prev?.points || 0) + pointsReward }));
+  alert(`🎉 Quest Completed! +${pointsReward} Eco-Points added!`);
+};
 
   return (
     <div className="flex h-screen bg-emerald-50/40 text-slate-800 font-sans">
@@ -128,37 +136,65 @@ function DashboardContent() {
   </div>
   <p className="text-xs text-slate-500">Estimate your daily travel emissions footprint:</p>
   <div className="flex gap-2">
-    <input 
-      type="number" 
-      placeholder="Distance traveled today (km)" 
-      className="flex-1 p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-emerald-500"
-    />
-    <button 
-      onClick={() => alert("Calculated: Your estimated travel footprint today is ~0.8 kg CO2. Good job keeping it low!")}
-      className="px-4 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition shadow-sm"
-    >
-      Calculate
-    </button>
+    <input
+  type="number"
+  placeholder="Distance traveled today (km)"
+  value={travelKm}
+  onChange={(e) => setTravelKm(e.target.value)}
+  className="flex-1 p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-none"
+/>
+<button
+  onClick={() => {
+    const val = parseFloat(travelKm) || 0;
+    const footprint = (val * 0.12).toFixed(1);
+    alert(`Calculated: Your estimated travel footprint today is ~${footprint} kg CO2. Good job keeping it low!`);
+  }}
+  className="px-4 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700"
+>
+  Calculate
+</button>
   </div>
 </div>
     <div className="space-y-3 pt-2">
-      <div className="p-4 border rounded-xl flex items-center justify-between bg-emerald-50 border-emerald-200">
-
-        <div>
-          <h4 className="font-semibold text-slate-800">Use a Reusable Water Bottle</h4>
-          <p className="text-sm text-slate-500">+50 Eco-Points</p>
-        </div>
-        <button className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700">Complete</button>
-      </div>
-      <div className="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
-        <div>
-          <h4 className="font-semibold text-slate-800">Plant a Seed / Tree</h4>
-          <p className="text-sm text-slate-500">+150 Eco-Points</p>
-        </div>
-        <button className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700">Complete</button>
-      </div>
+  {/* Quest 1 */}
+  <div className="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
+    <div>
+      <h4 className="font-semibold text-slate-800">Use a Reusable Water Bottle</h4>
+      <p className="text-xs text-slate-500">+50 Eco-Points</p>
     </div>
+    <button
+      onClick={() => handleCompleteQuest('water-bottle', 50)}
+      disabled={completedQuests.includes('water-bottle')}
+      className={`px-4 py-2 font-medium text-xs rounded-lg transition ${
+        completedQuests.includes('water-bottle')
+          ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+      }`}
+    >
+      {completedQuests.includes('water-bottle') ? 'Completed ✓' : 'Complete'}
+    </button>
   </div>
+
+  {/* Quest 2 */}
+  <div className="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
+    <div>
+      <h4 className="font-semibold text-slate-800">Plant a Seed / Tree</h4>
+      <p className="text-xs text-slate-500">+150 Eco-Points</p>
+    </div>
+    <button
+      onClick={() => handleCompleteQuest('plant-tree', 150)}
+      disabled={completedQuests.includes('plant-tree')}
+      className={`px-4 py-2 font-medium text-xs rounded-lg transition ${
+        completedQuests.includes('plant-tree')
+          ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+      }`}
+    >
+      {completedQuests.includes('plant-tree') ? 'Completed ✓' : 'Complete'}
+    </button>
+  </div>
+</div>
+</div>
 )}
 
 {activeTab === 'quiz' && (
@@ -205,9 +241,10 @@ function DashboardContent() {
       <p className="text-sm text-slate-500">Total Active Students: 28</p>
     </div>
   </div>
+ 
 )}
-        </main>
-        {/* FLOATING AI ECO-MENTOR WIDGET */}
+</main>
+{/* FLOATING AI ECO-MENTOR WIDGET */}
       <div className="fixed bottom-6 right-6 z-40">
         {aiOpen && (
           <div className="mb-3 w-80 p-4 bg-white rounded-2xl border border-emerald-200 shadow-2xl">
