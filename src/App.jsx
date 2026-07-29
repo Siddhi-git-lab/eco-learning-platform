@@ -107,13 +107,74 @@ function DashboardContent() {
             </div>
           )}
 
-          {activeTab !== 'dashboard' && (
-            <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
-              <p className="text-slate-500 font-medium">
-                [{activeTab.toUpperCase()} PAGE - Assigned to Team Member]
-              </p>
-            </div>
-          )}
+          {activeTab === 'tasks' && (
+  <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <h2 className="text-xl font-bold text-slate-800">🌱 Daily Eco-Quests</h2>
+    <p className="text-slate-600">Complete tasks to earn points and keep your streak!</p>
+    <div className="space-y-3 pt-2">
+      <div className="p-4 border rounded-xl flex items-center justify-between bg-emerald-50 border-emerald-200">
+        <div>
+          <h4 className="font-semibold text-slate-800">Use a Reusable Water Bottle</h4>
+          <p className="text-sm text-slate-500">+50 Eco-Points</p>
+        </div>
+        <button className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700">Complete</button>
+      </div>
+      <div className="p-4 border rounded-xl flex items-center justify-between bg-slate-50">
+        <div>
+          <h4 className="font-semibold text-slate-800">Plant a Seed / Tree</h4>
+          <p className="text-sm text-slate-500">+150 Eco-Points</p>
+        </div>
+        <button className="px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700">Complete</button>
+      </div>
+    </div>
+  </div>
+)}
+
+{activeTab === 'quiz' && (
+  <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <h2 className="text-xl font-bold text-slate-800">🧠 Eco-Quizzes</h2>
+    <p className="text-slate-600">Test your environmental knowledge!</p>
+    <div className="p-4 border rounded-xl bg-slate-50 space-y-3">
+      <p className="font-semibold text-slate-800">Q1: Which of the following reduces plastic waste the most?</p>
+      <div className="space-y-2">
+        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">A) Using single-use plastic cups</button>
+        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">B) Carrying a reusable cloth bag</button>
+        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">C) Burning plastic trash</button>
+      </div>
+    </div>
+  </div>
+)}
+
+{activeTab === 'leaderboard' && (
+  <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <h2 className="text-xl font-bold text-slate-800">🏆 Student Leaderboard</h2>
+    <div className="divide-y">
+      <div className="py-3 flex justify-between items-center font-semibold text-slate-700">
+        <span>#1 Aarav Sharma</span>
+        <span className="text-emerald-600">450 Points</span>
+      </div>
+      <div className="py-3 flex justify-between items-center text-slate-600">
+        <span>#2 Ananya Rao</span>
+        <span className="text-emerald-600">380 Points</span>
+      </div>
+      <div className="py-3 flex justify-between items-center text-slate-600">
+        <span>#3 Rohan Mehta</span>
+        <span className="text-emerald-600">310 Points</span>
+      </div>
+    </div>
+  </div>
+)}
+
+{activeTab === 'admin' && (
+  <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <h2 className="text-xl font-bold text-slate-800">👩‍🏫 Teacher Portal</h2>
+    <p className="text-slate-600">Manage classroom assignments and view student progress.</p>
+    <div className="p-4 border rounded-xl bg-slate-50">
+      <p className="font-medium text-slate-700">Classroom: Greenwood High - Grade 8</p>
+      <p className="text-sm text-slate-500">Total Active Students: 28</p>
+    </div>
+  </div>
+)}
         </main>
       </div>
     </div>
