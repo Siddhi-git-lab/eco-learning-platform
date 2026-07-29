@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GameProvider, useGame } from './GameContext';
 import { 
   LayoutDashboard, 
@@ -12,6 +12,11 @@ import {
 
 function DashboardContent() {
   const { user, activeTab, setActiveTab } = useGame();
+   const [points, setPoints] = useState(450);
+   const [streak, setStreak] = useState(5);
+   const [completedQuests, setCompletedQuests] = useState([]);
+   const [aiOpen, setAiOpen] = useState(false);
+   const [aiTip, setAiTip] = useState("Tip: Turning off unused appliances can save up to 10% on energy bills!");
 
   return (
     <div className="flex h-screen bg-emerald-50/40 text-slate-800 font-sans">
@@ -76,7 +81,7 @@ function DashboardContent() {
 
             <div className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 text-white rounded-full font-bold shadow-sm">
               <Leaf className="w-4 h-4" />
-              <span>{user.points} Eco-Points</span>
+              <span>{user.points} XP / Eco-Points</span>
             </div>
           </div>
         </header>
@@ -111,8 +116,34 @@ function DashboardContent() {
   <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
     <h2 className="text-xl font-bold text-slate-800">🌱 Daily Eco-Quests</h2>
     <p className="text-slate-600">Complete tasks to earn points and keep your streak!</p>
+    {/* CARBON FOOTPRINT CALCULATOR CARD */}
+<div className="p-6 my-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
+  <div className="flex justify-between items-center">
+    <h4 className="font-bold text-slate-800 flex items-center gap-2 text-base">
+      <span>🌱</span> Carbon Footprint Estimator
+    </h4>
+    <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+      Interactive Tool
+    </span>
+  </div>
+  <p className="text-xs text-slate-500">Estimate your daily travel emissions footprint:</p>
+  <div className="flex gap-2">
+    <input 
+      type="number" 
+      placeholder="Distance traveled today (km)" 
+      className="flex-1 p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-emerald-500"
+    />
+    <button 
+      onClick={() => alert("Calculated: Your estimated travel footprint today is ~0.8 kg CO2. Good job keeping it low!")}
+      className="px-4 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition shadow-sm"
+    >
+      Calculate
+    </button>
+  </div>
+</div>
     <div className="space-y-3 pt-2">
       <div className="p-4 border rounded-xl flex items-center justify-between bg-emerald-50 border-emerald-200">
+
         <div>
           <h4 className="font-semibold text-slate-800">Use a Reusable Water Bottle</h4>
           <p className="text-sm text-slate-500">+50 Eco-Points</p>
@@ -176,6 +207,34 @@ function DashboardContent() {
   </div>
 )}
         </main>
+        {/* FLOATING AI ECO-MENTOR WIDGET */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {aiOpen && (
+          <div className="mb-3 w-80 p-4 bg-white rounded-2xl border border-emerald-200 shadow-2xl">
+            <div className="flex items-center justify-between mb-2 pb-2 border-b">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🤖</span>
+                <h4 className="font-bold text-slate-800 text-sm">AI Eco-Mentor</h4>
+              </div>
+              <button onClick={() => setAiOpen(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">{aiTip}</p>
+            <button 
+              onClick={() => setAiTip("Great job on your quests today! Try taking shorter showers to conserve water next.")} 
+              className="mt-3 w-full py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 transition"
+            >
+              Ask AI for Next Tip ✨
+            </button>
+          </div>
+        )}
+        <button 
+          onClick={() => setAiOpen(!aiOpen)}
+          className="flex items-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-full font-bold shadow-lg hover:bg-emerald-700 transition"
+        >
+          <span>🤖</span>
+          <span className="text-sm">AI Eco-Mentor</span>
+        </button>
+      </div>
       </div>
     </div>
   );
