@@ -15,3 +15,19 @@ export const sampleBadges = [
   { id: 3, name: "Energy Saver", icon: "⚡", unlocked: false, desc: "Saved 20 kWh of electricity" },
   { id: 4, name: "Eco Scholar", icon: "📚", unlocked: false, desc: "Scored 100% in 5 quizzes" },
 ];
+export const sampleQuizzes = [
+  {
+    id: 1,
+    question: "Which of these gases is the primary contributor to global warming?",
+    options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"],
+    correctAnswer: "Carbon Dioxide",
+    pointsReward: 50
+  },
+  {
+    id: 2,
+    question: "What is the most abundant renewable energy source on Earth?",
+    options: ["Wind Energy", "Solar Energy", "Geothermal Energy", "Hydropower"],
+    correctAnswer: "Solar Energy",
+    pointsReward: 50
+  }
+];

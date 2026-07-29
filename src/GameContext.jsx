@@ -7,6 +7,7 @@ const GameContext = createContext();
 export const GameProvider = ({ children }) => {
   const [user, setUser] = useState(initialUserData);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [completedQuests, setCompletedQuests] = useState([]);
 
   const addPoints = (amount, reason = "Task Completed!") => {
     setUser((prev) => {
@@ -26,7 +27,7 @@ export const GameProvider = ({ children }) => {
   };
 
   return (
-    <GameContext.Provider value={{ user, addPoints, activeTab, setActiveTab }}>
+    <GameContext.Provider value={{ user, addPoints, activeTab, setActiveTab, completedQuests, setCompletedQuests }}>
       {children}
     </GameContext.Provider>
   );

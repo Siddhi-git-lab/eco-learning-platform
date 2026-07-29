@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GameProvider, useGame } from './GameContext';
+import { sampleQuizzes } from './mockData';
 import { 
   LayoutDashboard, 
   CheckSquare, 
@@ -12,9 +13,9 @@ import {
 
 function DashboardContent() {
   const [travelKm, setTravelKm] = useState('');
-  const { user, setUser, activeTab, setActiveTab } = useGame();
+  const { user, addPoints, activeTab, setActiveTab } = useGame();
   const [streak, setStreak] = useState(5);
-  const [completedQuests, setCompletedQuests] = useState([]);
+  const { completedQuests, setCompletedQuests } = useGame();
   const [aiOpen, setAiOpen] = useState(false);
   const [aiTip, setAiTip] = useState("Tip: Turning off unused appliances can save up to 10% on energy bills!");
   if (!user) return <div>Loading...</div>;
@@ -22,7 +23,7 @@ function DashboardContent() {
   if (completedQuests.includes(questId)) return;
 
   setCompletedQuests([...completedQuests, questId]);
-  setUser(prev => ({ ...prev, points: (prev?.points || 0) + pointsReward }));
+  addPoints(pointsReward);
   alert(`🎉 Quest Completed! +${pointsReward} Eco-Points added!`);
 };
 
@@ -201,14 +202,30 @@ function DashboardContent() {
   <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
     <h2 className="text-xl font-bold text-slate-800">🧠 Eco-Quizzes</h2>
     <p className="text-slate-600">Test your environmental knowledge!</p>
-    <div className="p-4 border rounded-xl bg-slate-50 space-y-3">
-      <p className="font-semibold text-slate-800">Q1: Which of the following reduces plastic waste the most?</p>
-      <div className="space-y-2">
-        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">A) Using single-use plastic cups</button>
-        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">B) Carrying a reusable cloth bag</button>
-        <button className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition-colors">C) Burning plastic trash</button>
+    
+    {sampleQuizzes.map((quiz) => (
+      <div key={quiz.id} className="p-4 border rounded-xl bg-slate-50 space-y-3 mb-4">
+        <p className="font-semibold text-slate-800">Q{quiz.id}: {quiz.question}</p>
+        <div className="space-y-2">
+          {quiz.options.map((option, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                if (option === quiz.correctAnswer) {
+                  addPoints(quiz.pointsReward);
+                  alert(`🎉 Correct! +${quiz.pointsReward} Eco-Points added!`);
+                } else {
+                  alert("❌ Incorrect, try again!");
+                }
+              }}
+              className="w-full text-left p-3 border rounded-lg bg-white hover:bg-emerald-50 transition"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    ))}
   </div>
 )}
 
