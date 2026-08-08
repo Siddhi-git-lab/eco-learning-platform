@@ -1,224 +1,643 @@
-import React, { useState, useEffect } from 'react';
-import { GameProvider, useGame } from "./GameContext";
-import { sampleQuizzes } from "./mockData";
-import {
-  LayoutDashboard,
-  CheckSquare,
-  HelpCircle,
-  Trophy,
-  UserCheck,
+import React, { useState } from 'react';
+import { GameProvider, useGame } from './GameContext';
+import { verifyPhotoWithAI } from './aiService';
+import { 
+  LayoutDashboard, 
+  CheckSquare, 
+  HelpCircle, 
+  Trophy, 
+  UserCheck, 
   Flame,
-  Leaf
-} from "lucide-react";
+  Leaf,
+  Zap,
+  Upload,
+  Send,
+  CheckCircle2,
+  Award,
+  X
+} from 'lucide-react';
 
 function DashboardContent() {
-  const [travelKm, setTravelKm] = useState("");
-  const { user, addPoints, activeTab, setActiveTab, leaderboard } = useGame();
-  const [streak, setStreak] = useState(5);
-  const { completedQuests, setCompletedQuests } = useGame();
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiTip, setAiTip] = useState("Tip: Turning off unused appliances saves energy.");
+  const [travelKm, setTravelKm] = useState('');
+  const [electricityKwh, setElectricityKwh] = useState('');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [toastMessage, setToastMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  
+  const { user, addPoints, streak } = useGame();
+  
+  // AI Chat states
+  const [isOpen, setIsOpen] = useState(true);
+  const [chatInput, setChatInput] = useState('');
+  const [messages, setMessages] = useState([
+    { sender: 'ai', text: "Hello! I am your AI Eco-Mentor. Ask me any question about sustainability, carbon footprints, or eco-friendly habits!" }
+  ]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const [iotStatus, setIotStatus] = useState("Connected (Syncing...)");
+  // Quiz states
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
-  useEffect(() => {
-    const simulatedEvents = [
-      "Smart Bin #4: Waste Sorted Successfully",
-      "Air Quality Sensor: Optimal Level",
-      "Solar Panel Array: Generating Energy",
-      "IoT Module: Telemetry Packet Received"
-    ];
+  // Teacher portal / photo upload states
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [pendingTasks, setPendingTasks] = useState([
+    { id: 1, student: "Aarav Sharma", task: "Planted a sapling in the community park", status: "Pending Review" },
+    { id: 2, student: "Neha Patel", task: "Used public transport for a week", status: "Pending Review" }
+  ]);
 
-    const interval = setInterval(() => {
-      const randomEvent = simulatedEvents[Math.floor(Math.random() * simulatedEvents.length)];
-      setIotStatus(randomEvent);
-    }, 12000);
+  // Calculations
+  const carbonTotal = (Number(travelKm) * 0.21) + (Number(electricityKwh) * 0.85);
+  const co2Offset = carbonTotal > 0 ? carbonTotal : 12.50;
 
-    return () => clearInterval(interval);
-  }, []);
+  
+  // Top 5 Quizzes
+  const allQuizzes = [
+    {
+      id: 1,
+      question: "Which greenhouse gas is released in the highest quantities through human activities?",
+      options: ["Carbon Dioxide (CO2)", "Methane", "Nitrous Oxide", "Ozone"],
+      correctAnswer: 0,
+      reason: "Carbon dioxide is the primary greenhouse gas emitted through human activities like burning fossil fuels and deforestation."
+    },
+    {
+      id: 2,
+      question: "What is the primary source of renewable energy worldwide?",
+      options: ["Solar Energy", "Wind Energy", "Hydropower", "Geothermal Energy"],
+      correctAnswer: 2,
+      reason: "Hydropower is currently the largest source of renewable electricity generation globally due to established dam infrastructure."
+    },
+    {
+      id: 3,
+      question: "Which of these materials takes the longest to decompose in a landfill?",
+      options: ["Banana Peel", "Plastic Bottle", "Cardboard Box", "Cotton T-Shirt"],
+      correctAnswer: 1,
+      reason: "Plastic bottles can take anywhere from 450 to 1,000 years to decompose, whereas organic materials break down much faster."
+    },
+    {
+      id: 4,
+      question: "What does a 'Zero Waste' lifestyle primarily aim to eliminate?",
+      options: ["All household spending", "Landfill-bound trash", "Water usage", "Electricity consumption"],
+      correctAnswer: 1,
+      reason: "Zero waste focuses on redesigning resource life cycles so that all products are reused, recycled, or composted instead of sent to landfills."
+    },
+    {
+      id: 5,
+      question: "Which tree species is widely recognized for high oxygen production and carbon absorption?",
+      options: ["Neem / Peepal", "Cactus", "Rubber Plant", "Fern"],
+      correctAnswer: 0,
+      reason: "Trees like Peepal and Neem are exceptional environmental assets known for high carbon sequestration rates and releasing ample oxygen."
+    }
+  ];
 
-  if (!user) return <div>Loading...</div>;
+  
 
-  const handleCompleteQuest = (questId, pointsReward) => {
-    if (completedQuests.includes(questId)) return;
-    setCompletedQuests([...completedQuests, questId]);
-    addPoints(pointsReward);
-    alert(`🎉 Quest Completed! +${pointsReward} Eco-Points added!`);
+  const handleSendMessage = (e) => {
+  e.preventDefault();
+  if (!chatInput.trim()) return;
+
+  const userMsg = chatInput;
+  setMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+  setChatInput('');
+  setIsExpanded(true);
+
+  setTimeout(() => {
+    const lower = userMsg.toLowerCase();
+    let reply = "That's an interesting question! Could you try asking about sustainability, carbon footprints, or eco-friendly habits?";
+
+    if (lower.includes('greenhouse') || lower.includes('gas')) {
+      reply = "A greenhouse gas (like CO2 and methane) traps heat in Earth's atmosphere...";
+    } else if (lower.includes('carbon') || lower.includes('co2')) {
+      reply = reply = "A carbon footprint is the total amount of greenhouse gases generated by our daily activities and actions.";
+    } else if (lower.includes('tree') || lower.includes('plant')) {
+      reply = "Trees absorb carbon dioxide during photosynthesis and release clean oxygen.";
+    } else if (lower.includes('recycle') || lower.includes('waste')) {
+      reply = "Recycling converts waste materials into reusable substances, reducing landfill...";
+    } else if (lower.includes('habit') || lower.includes('eco-friendly') || lower.includes('sustainable')) {
+      reply = "Eco-friendly habits include reducing single-use plastics, conserving water, saving electricity, and choosing sustainable transportation!";
+    } else if (lower.includes('sustainability') || lower.includes('what is sustainability')) {
+      reply = "Sustainability is meeting current needs without compromising future generations.";
+    }
+
+    setMessages(prev => [...prev, { sender: 'ai', text: reply }]);
+  }, 1000);
+};
+    
+
+
+  const handleFileUpload = (e) => {
+    e.preventDefault();
+
+    if (!selectedFile) {
+      alert("Please select a photo proof first!");
+      return;
+    }
+
+    const newSubmission = {
+      id: Date.now(),
+      taskName: "Plant a Sapling or Recycle Waste",
+      imageUrl: URL.createObjectURL(selectedFile),
+      status: "pending",
+      points: 30,
+    };
+
+    setPendingTasks((prev) => [...prev, newSubmission]);
+    setUploadSuccess(true);
+
+    setTimeout(() => {
+      setUploadSuccess(false);
+      setSelectedFile(null);
+    }, 3000);
+  };
+
+  const approveTask = (id) => {
+    const taskToApprove = pendingTasks.find((t) => t.id === id);
+    if (taskToApprove && taskToApprove.status === "pending") {
+      addPoints(taskToApprove.points);
+    }
+
+    setPendingTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: "approved" } : t))
+    );
   };
 
   return (
-    <div className="flex h-screen bg-emerald-50/40 text-slate-800 font-sans">
+    <div className="flex min-h-screen bg-slate-50 text-slate-800 font-sans relative">
       
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-emerald-100 p-6 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-8">
-            <div className="p-2 bg-emerald-500 rounded-lg text-white">
-              <Leaf className="w-6 h-6" />
-            </div>
-            <span className="font-bold text-xl text-emerald-900">EcoQuest</span>
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-6">
+        <div className="space-y-8">
+          <div className="flex items-center space-x-2">
+            <Leaf className="w-6 h-6 text-emerald-600" />
+            <span className="text-xl font-bold tracking-tight text-slate-900">EcoQuest</span>
           </div>
-
-          <nav className="space-y-2">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'tasks', label: 'Eco-Quests', icon: CheckSquare },
-              { id: 'quiz', label: 'Eco-Quizzes', icon: HelpCircle },
-              { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-              { id: 'admin', label: 'Teacher Portal', icon: UserCheck },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
-                    isActive
-                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                      : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </button>
-              );
-            })}
+          <nav className="space-y-1">
+            <button 
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <LayoutDashboard className="w-4 h-4 inline mr-2" /> Dashboard
+            </button>
+            <button 
+              onClick={() => setActiveTab('tasks')}
+              className={`w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === 'tasks' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <CheckSquare className="w-4 h-4 inline mr-2" /> Eco-Quests
+            </button>
+            <button 
+              onClick={() => setActiveTab('quizzes')}
+              className={`w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === 'quizzes' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <HelpCircle className="w-4 h-4 inline mr-2" /> Eco-Quizzes ({allQuizzes.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab('leaderboard')}
+              className={`w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === 'leaderboard' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <Trophy className="w-4 h-4 inline mr-2" /> Leaderboard
+            </button>
+            <button 
+              onClick={() => setActiveTab('admin')}
+              className={`w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-xl text-sm font-medium transition ${activeTab === 'admin' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <UserCheck className="w-4 h-4 inline mr-2" /> Teacher Portal
+            </button>
           </nav>
         </div>
-
-        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
-            {user.name.charAt(0)}
-          </div>
-          <div className="overflow-hidden">
-            <p className="font-bold text-sm text-emerald-900 truncate">{user.name}</p>
-            <p className="text-xs text-emerald-600 truncate">{user.school}</p>
-          </div>
+        <div className="pt-4 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Student Profile</p>
+          <p className="text-sm font-bold text-slate-800">{user?.name || "Aarav Sharma"}</p>
+          <p className="text-xs text-slate-500">{user?.school || "Greenwood High School"}</p>
         </div>
       </aside>
 
-      {/* MAIN CONTENT CONTAINER */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        
-        {/* TOP NAVBAR */}
-        <header className="bg-white border-b border-emerald-100 px-8 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800 capitalize">{activeTab}</h1>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-sm font-semibold border border-amber-200">
-              <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
-              <span>{streak} Day Streak</span>
+      {/* Main Container */}
+      <main className="flex-1 p-8 overflow-y-auto pb-32">
+        {/* Top Header Banner */}
+        <header className="mb-6 bg-gradient-to-r from-emerald-800 to-teal-700 rounded-3xl p-6 text-white shadow-lg flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Welcome back, {user?.name || "Aarav Sharma"}! 🌱</h1>
+            <p className="text-emerald-100 text-sm mt-1">You are on Level 3! Complete today's quest to keep your streak active.</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 bg-emerald-900/50 px-4 py-2 rounded-2xl border border-emerald-500/30">
+              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              <span className="text-sm font-bold">{user?.points || 150} XP</span>
             </div>
-
-            <div className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-500 text-white rounded-full text-sm font-bold shadow-sm">
-              <Leaf className="w-4 h-4" />
-              <span>{user.points} XP / Eco-Points</span>
+            <div className="flex items-center space-x-2 bg-emerald-900/50 px-4 py-2 rounded-2xl border border-emerald-500/30">
+              <Flame className="w-5 h-5 text-amber-400 fill-amber-400" />
+              <span className="text-sm font-bold">{streak} Day Streak</span>
             </div>
           </div>
         </header>
-
-        {/* PAGE VIEWS */}
-        <main className="p-8">
-          
-          {/* IoT Sensor Hub Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', background: '#e8f5e9', padding: '6px 14px', borderRadius: '20px', fontSize: '13px', color: '#2e7d32', fontWeight: '500', marginBottom: '15px' }}>
-            <span style={{ height: '8px', width: '8px', backgroundColor: '#4caf50', borderRadius: '50%', display: 'inline-block', marginRight: '8px' }}></span>
-            IoT Sensor Hub: <span style={{ marginLeft: '4px', fontWeight: 'bold' }}>{iotStatus}</span>
-          </div>
-
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <div className="bg-emerald-800 text-white p-6 rounded-2xl shadow-lg shadow-emerald-900/10">
-                <h1 className="text-2xl font-bold mb-2">Welcome back, {user.name}! 🌱</h1>
-                <p className="text-emerald-100 text-sm">
-                  You are on Level 3! Complete today's quest to keep your streak active.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-6">
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">CO₂ Offset</p>
-                  <p className="text-2xl font-black text-emerald-900">12.5 kg</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Trees Planted</p>
-                  <p className="text-2xl font-black text-emerald-900">3</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Current Level</p>
-                  <p className="text-2xl font-black text-emerald-900">Level 3</p>
-                </div>
-              </div>
+        
+        {/* IoT Status Bar */}
+        <div className="mb-6 bg-white border border-emerald-200 rounded-2xl px-6 py-3.5 shadow-sm flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">IoT Sensor Status</p>
+              <p className="text-sm font-extrabold text-emerald-800">Connected & Syncing Real-time Air Quality / Footprint Metrics</p>
             </div>
-          )}
+          </div>
+          <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-3 py-1 rounded-full border border-emerald-200">Active Node #402</span>
+        </div>
 
-          {activeTab === 'tasks' && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-800">Available Eco-Quests</h2>
-              <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center justify-between">
+        {/* Dashboard Tab */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-800">Carbon Footprint Calculator</h2>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Live Tracker</span>
+              </div>
+              <p className="text-xs text-slate-500">Enter your daily consumption to calculate your estimated carbon footprint.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <h3 className="font-bold text-emerald-900">Plant a Sapling</h3>
-                  <p className="text-sm text-slate-500">Upload a photo of a newly planted tree or sapling.</p>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">CAR TRAVEL (KM)</label>
+                  <input 
+                    type="number" 
+                    value={travelKm} 
+                    onChange={(e) => setTravelKm(e.target.value)} 
+                    placeholder="e.g. 15"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">ELECTRICITY USED (KWH)</label>
+                  <input 
+                    type="number" 
+                    value={electricityKwh} 
+                    onChange={(e) => setElectricityKwh(e.target.value)} 
+                    placeholder="e.g. 5"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <div>
+                  <p className="text-xs text-slate-400 font-medium">Estimated Daily Emissions</p>
+                  <p className="text-xl font-extrabold text-slate-800">{carbonTotal.toFixed(2)} kg CO₂</p>
                 </div>
                 <button 
-                  onClick={() => handleCompleteQuest('quest-1', 50)}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition"
+                  onClick={() => addPoints(10)}
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition shadow-sm"
                 >
-                  Complete (+50 XP)
+                  Log to Profile
                 </button>
               </div>
             </div>
-          )}
 
-          {activeTab === 'quiz' && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-800">Daily Eco-Quiz</h2>
-              <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
-                <p className="font-medium text-slate-700 mb-4">{sampleQuizzes[0]?.question || "Which energy source is completely renewable?"}</p>
-                <div className="space-y-2">
-                  {sampleQuizzes[0]?.options?.map((opt, idx) => (
-                    <button key={idx} className="w-full text-left px-4 py-3 rounded-xl border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 transition">
-                      {opt}
-                    </button>
-                  ))}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">CO₂ OFFSET</p>
+                <p className="text-2xl font-extrabold text-slate-800 mt-2">{co2Offset.toFixed(2)} kg</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">TREES PLANTED</p>
+                <p className="text-2xl font-extrabold text-slate-800 mt-2">{user?.treesPlanted || 3}</p>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">CURRENT LEVEL</p>
+                <p className="text-2xl font-extrabold text-emerald-600 mt-2">Level 3</p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'leaderboard' && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-800">School Leaderboard</h2>
-              <div className="bg-white rounded-2xl border border-emerald-100 overflow-hidden shadow-sm">
-                <div className="p-4 bg-emerald-50 font-bold text-emerald-900 flex justify-between">
-                  <span>Student Name</span>
-                  <span>Eco-Points</span>
+        {/* Tasks Tab */}
+        {activeTab === 'tasks' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-800">Daily Eco-Quests & Photo Verification</h2>
+            
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-emerald-800 text-base">Plant a Sapling or Recycle Waste</h3>
+                  <p className="text-sm text-slate-500">Upload proof photo of your green activity to earn +30 XP points and teacher verification.</p>
                 </div>
-                {leaderboard && leaderboard.length > 0 ? (
-                  leaderboard.map((student, index) => (
-                    <div key={index} className="p-4 border-t border-emerald-50 flex justify-between items-center">
-                      <span className="font-medium text-slate-700">{index + 1}. {student.name}</span>
-                      <span className="font-bold text-emerald-600">{student.points} XP</span>
+              </div>
+
+              <form onSubmit={async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      alert("Please select a photo proof first!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const responseData = await verifyPhotoWithAI(selectedFile, "Plant a sapling or recycle waste");
+      setResult(responseData);
+      if (responseData.status === "approved" || responseData.confidence_score > 0.7) {
+        addPoints(30); 
+      }
+    } catch (err) {
+      alert("Verification failed. Make sure your Python backend is running!");
+    } finally {
+      setLoading(false);
+    }
+  }} className="space-y-4 pt-2">
+    
+    <label className="flex flex-col items-center justify-center border-2 border-dashed border-emerald-300 rounded-2xl p-6 cursor-pointer hover:bg-emerald-50/50 transition">
+      <Upload className="w-8 h-8 text-emerald-600 mb-2" />
+      <span className="text-sm font-medium text-slate-700">
+        {selectedFile ? selectedFile.name : "Click to upload proof photo (.jpg, .png)"}
+      </span>
+      <input 
+        type="file" 
+        accept="image/*"
+        onChange={(e) => setSelectedFile(e.target.files[0])}
+        className="hidden"
+      />
+    </label>
+
+    <button 
+      type="submit" 
+      disabled={loading || !selectedFile}
+      className="w-full py-3 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
+    >
+      {loading ? "AI is reviewing your photo..." : "Verify Quest with AI"}
+    </button>
+  </form>
+
+  {result && (
+    <div className="mt-4 p-4 border rounded-xl bg-emerald-50/50 border-emerald-200">
+      <p className="text-sm"><strong>Status:</strong> <span className="capitalize text-emerald-700 font-semibold">{result.status}</span></p>
+      <p className="text-sm"><strong>Confidence:</strong> {(result.confidence_score * 100).toFixed(1)}%</p>
+      <p className="text-sm mt-1"><strong>Reasoning:</strong> {result.reasoning}</p>
+    </div>
+  )}
+</div>
+            {/* Teacher Portal Review Section */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mt-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Teacher Portal — Pending Approvals</h3>
+
+        {pendingTasks.filter(t => t.status === 'pending').length === 0 ? (
+          <p className="text-slate-500 text-sm">No pending submissions to review.</p>
+        ) : (
+          <div className="space-y-4">
+            {pendingTasks.filter(t => t.status === 'pending').map((task) => (
+              <div key={task.id} className="flex items-center justify-between border-b pb-4">
+                <div className="flex items-center space-x-4">
+                  <img 
+                    src={task.imageUrl} 
+                    alt="Proof" 
+                    className="h-16 w-16 object-cover rounded-lg border border-slate-200"
+                  />
+                  <div>
+                    <p className="font-semibold text-slate-800">{task.taskName}</p>
+                    <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full font-medium">
+                      Pending Teacher Review
+                    </span>
+                  </div>
+                </div>
+
+                <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">
+                  Awaiting Verification
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+
+        {/* Quizzes Tab */}
+{activeTab === 'quizzes' && (
+  <div className="space-y-6">
+    <div className="flex items-center justify-between">
+      <h2 className="text-xl font-bold text-slate-800">Eco-Quizzes (Top 5 Challenges)</h2>
+      <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-semibold">
+        {!quizSubmitted ? `Question ${currentQuizIndex + 1} of ${Math.min(allQuizzes.length, 5)}` : "Quiz Completed"}
+      </span>
+    </div>
+
+    {!quizSubmitted ? (
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <h3 className="text-lg font-bold text-slate-900">
+          {allQuizzes[currentQuizIndex]?.question}
+        </h3>
+
+        {/* Options List */}
+        <div className="space-y-3">
+          {allQuizzes[currentQuizIndex]?.options.map((option, idx) => {
+            const isSelected = selectedOption === idx;
+            const isCorrect = idx === allQuizzes[currentQuizIndex]?.correctAnswer;
+            
+            let btnStyle = "border-slate-200 hover:border-emerald-500 text-slate-700 bg-white";
+            if (selectedOption !== null) {
+              if (isCorrect) btnStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-medium";
+              else if (isSelected && !isCorrect) btnStyle = "bg-rose-50 border-rose-500 text-rose-800 font-medium";
+            }
+
+            return (
+              <button
+                key={idx}
+                disabled={selectedOption !== null}
+                onClick={() => setSelectedOption(idx)}
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${btnStyle}`}
+              >
+                <span>{option}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Correct Answer & Reason Box */}
+        {selectedOption !== null && (
+          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 mt-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md">
+                Correct Answer
+              </span>
+              <span className="text-sm font-semibold text-slate-800">
+                {allQuizzes[currentQuizIndex]?.options[allQuizzes[currentQuizIndex]?.correctAnswer]}
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed pt-1">
+              <strong className="text-slate-700">Why?</strong> {allQuizzes[currentQuizIndex]?.reason}
+            </p>
+          </div>
+        )}
+
+        {/* Next Question Button */}
+        {selectedOption !== null && (
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={() => {
+                if (selectedOption === allQuizzes[currentQuizIndex]?.correctAnswer) {
+                  setQuizScore(prev => prev + 10);
+                  addPoints(10);
+                }
+                if (currentQuizIndex < Math.min(allQuizzes.length, 5) - 1) {
+                  setCurrentQuizIndex(prev => prev + 1);
+                  setSelectedOption(null);
+                } else {
+                  setQuizSubmitted(true);
+                }
+              }}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              {currentQuizIndex < Math.min(allQuizzes.length, 5) - 1 ? "Next Question →" : "Finish Quiz"}
+            </button>
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
+        <h3 className="text-xl font-bold text-slate-800">Quiz Completed! 🎉</h3>
+        <p className="text-slate-600">Great job testing your eco-knowledge!</p>
+        <button
+          onClick={() => {
+            setCurrentQuizIndex(0);
+            setSelectedOption(null);
+            setQuizSubmitted(false);
+            setQuizScore(0);
+          }}
+          className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+        >
+          Retake Quizzes
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
+        {/* Leaderboard Tab */}
+        {activeTab === 'leaderboard' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-800">School Leaderboard</h2>
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Rank & Student</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">School & XP Score</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {[
+                  { rank: 1, name: "Aarav Sharma (You)", xp: user?.points || 150, school: "Greenwood High", badge: "🥇" },
+                  { rank: 2, name: "Priya Nair", xp: 140, school: "Greenwood High", badge: "🥈" },
+                  { rank: 3, name: "Rohan Verma", xp: 125, school: "Greenwood High", badge: "🥉" },
+                  { rank: 4, name: "Ananya Iyer", xp: 110, school: "Greenwood High", badge: "🌱" },
+                  { rank: 5, name: "Kabir Das", xp: 95, school: "Greenwood High", badge: "🌱" }
+                ].map((student) => (
+                  <div key={student.rank} className={`p-5 flex items-center justify-between ${student.rank === 1 ? 'bg-emerald-50/60' : ''}`}>
+                    <div className="flex items-center space-x-4">
+                      <span className="w-8 h-8 rounded-xl bg-slate-100 font-extrabold text-sm flex items-center justify-center text-slate-700">
+                        {student.badge} {student.rank}
+                      </span>
+                      <div>
+                        <p className="font-bold text-sm text-slate-900">{student.name}</p>
+                        <p className="text-xs text-slate-500">{student.school}</p>
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-slate-500">No leaderboard data available.</div>
-                )}
+                    <div className="text-right">
+                      <p className="text-sm font-extrabold text-emerald-700">{student.xp} XP</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'admin' && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-800">Teacher Portal & Verification</h2>
-              <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
-                <p className="text-slate-600">Review and approve student-submitted environmental action tasks here.</p>
+        {/* Admin Tab */}
+        {activeTab === 'admin' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-800">Teacher Portal & Student Verifications</h2>
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <p className="text-xs text-slate-500">Review student photo submissions and reward eco-activity credits.</p>
+              
+              <div className="space-y-3">
+                {pendingTasks.map((t) => (
+                  <div key={t.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">{t.student}</p>
+                      <p className="text-xs text-slate-600">{t.task}</p>
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md inline-block mt-1">
+                        {t.status}
+                      </span>
+                    </div>
+                    <button
+  onClick={() => {
+    approveTask(t.id);
+    setToastMessage("Task approved and XP awarded successfully! 🎉");
+    setTimeout(() => setToastMessage(null), 3000);
+  }}
+  disabled={t.status.includes('Approved')}
+  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+    t.status.includes('Approved') 
+      ? 'bg-emerald-100 text-emerald-800 cursor-not-allowed' 
+      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+  }`}
+>
+  {t.status.includes('Approved') ? 'Verified ✓' : 'Approve & Award'}
+</button>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
+        )}
+      </main>
 
-        </main>
+      {/* Interactive AI Eco-Mentor Floating Widget */}
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-3 z-50 border border-slate-800 transition-all">
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+            ✓
+          </div>
+          <span className="text-sm font-medium">{toastMessage}</span>
+        </div>
+      )}
+      <div className={`fixed bottom-6 right-6 z-50 bg-gradient-to-br from-emerald-900 to-teal-800 rounded-2xl shadow-2xl p-4 transition-all duration-300 flex flex-col ${isOpen ? 'w-96 max-h-[75vh]' : 'w-72 h-16 overflow-hidden'}`}>
+        <div className="flex items-center justify-between pb-3 border-b border-emerald-700/50">
+  <div className="flex items-center space-x-2">
+    <div className="w-8 h-8 rounded-full bg-emerald-500/30 flex items-center justify-center">🤖</div>
+    <div>
+      <h4 className="font-bold text-sm text-emerald-100">AI Eco-Mentor</h4>
+      <p className="text-[10px] text-emerald-300">Ask any real sustainability question</p>
+    </div>
+  </div>
+  
+  <button 
+    onClick={() => setIsOpen(!isOpen)} 
+    className="text-emerald-300 hover:text-white px-2 py-1 text-lg font-bold focus:outline-none"
+  >
+    {isOpen ? '−' : '+'}
+  </button>
+</div>
+
+        <div className="flex-1 overflow-y-auto max-h-[50vh] py-3 space-y-3 pr-1">
+          {messages.map((m, idx) => (
+            <div key={idx} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] p-3 rounded-2xl text-xs leading-relaxed ${m.sender === 'user' ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-emerald-950/80 text-emerald-100 border border-emerald-500/20 rounded-bl-none'}`}>
+                {m.text}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <form onSubmit={handleSendMessage} className="pt-2 border-t border-emerald-700/50 flex items-center space-x-2">
+          <input 
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder="Type any question here..."
+            className="flex-1 px-3 py-2 bg-emerald-950/60 border border-emerald-500/30 rounded-xl text-xs text-white placeholder-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+          />
+          <button 
+            type="submit"
+            className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
       </div>
     </div>
   );
